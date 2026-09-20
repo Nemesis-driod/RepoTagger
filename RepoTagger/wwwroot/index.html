@@ -1,0 +1,364 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RepoTagger</title>
+    <style>
+        :root {
+            --bg: #f5f6f7;
+            --panel: #ffffff;
+            --border: #dfe1e4;
+            --text: #1c1f23;
+            --muted: #6b7178;
+            --accent: #2f5d8a;
+            --warn: #8a5a2f;
+            --bad: #8a2f2f;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+            header h1 {
+                font-size: 16px;
+                font-weight: 600;
+                margin: 0;
+            }
+
+            header .spacer {
+                flex: 1;
+            }
+
+            header .stamp {
+                color: var(--muted);
+                font-size: 12px;
+            }
+
+        button {
+            font: inherit;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text);
+        }
+
+            button:hover {
+                background: #eef0f2;
+            }
+
+        main {
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        section {
+            margin-bottom: 28px;
+        }
+
+        h2 {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+            margin: 0 0 10px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 14px 16px;
+        }
+
+            .card .label {
+                color: var(--muted);
+                font-size: 12px;
+                margin-bottom: 4px;
+            }
+
+            .card .value {
+                font-size: 22px;
+                font-weight: 600;
+            }
+
+                .card .value.warn {
+                    color: var(--warn);
+                }
+
+                .card .value.bad {
+                    color: var(--bad);
+                }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            text-align: left;
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--muted);
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #eef0f2;
+            white-space: nowrap;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        td.num, th.num {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        td.none {
+            color: var(--muted);
+        }
+
+        .empty, .error {
+            padding: 16px;
+            color: var(--muted);
+        }
+
+        .error {
+            color: var(--bad);
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>RepoTagger</h1>
+        <div class="spacer"></div>
+        <span class="stamp" id="stamp"></span>
+        <button id="refresh">Refresh</button>
+    </header>
+
+    <main>
+        <section>
+            <h2>Operations</h2>
+            <div class="cards" id="kpis"></div>
+        </section>
+
+        <section>
+            <h2>Accuracy</h2>
+            <div class="panel" id="accuracy"></div>
+        </section>
+
+        <section>
+            <h2>Cost</h2>
+            <div class="panel" id="cost"></div>
+        </section>
+
+        <section>
+            <h2>Decisions by repository and model</h2>
+            <div class="panel" id="breakdown"></div>
+        </section>
+
+        <section>
+            <h2>AI calls</h2>
+            <label class="toggle">
+                <input type="checkbox" id="onlyUnknown" checked>
+                Only calls with unknown cost
+            </label>
+            <div class="panel" id="detail"></div>
+        </section>
+    </main>
+
+    <script>
+const $ = id => document.getElementById(id);
+
+const dash = '<span class="none">&mdash;</span>';
+const num = v => v === null || v === undefined ? dash : Number(v).toLocaleString();
+const pct = v => v === null || v === undefined ? dash : (Number(v) * 100).toFixed(1) + '%';
+const usd = v => v === null || v === undefined ? dash : '$' + Number(v).toFixed(4);
+const dec = (v, p = 2) => v === null || v === undefined ? dash : Number(v).toFixed(p);
+const when = v => v === null || v === undefined ? dash : new Date(v).toLocaleString();
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function get(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+  return res.json();
+}
+
+function table(target, columns, rows) {
+  if (!rows || rows.length === 0) {
+    target.innerHTML = '<div class="empty">No data yet.</div>';
+    return;
+  }
+  const head = columns.map(c => `<th class="${c.num ? 'num' : ''}">${esc(c.title)}</th>`).join('');
+  const body = rows.map(r =>
+    '<tr>' + columns.map(c => `<td class="${c.num ? 'num' : ''}">${c.cell(r)}</td>`).join('') + '</tr>'
+  ).join('');
+  target.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+}
+
+function fail(target, err) {
+  target.innerHTML = `<div class="error">Couldn't load: ${esc(err.message)}</div>`;
+}
+
+async function loadOperations() {
+  const target = $('kpis');
+  try {
+    const data = await get('/reports/operations');
+    const o = data.operations;
+
+    target.innerHTML = [
+      ['Deliveries', num(o.totalWebhookDeliveries), ''],
+      ['Pending jobs', num(o.pendingJobs), ''],
+      ['Failed jobs', num(o.failedJobs), o.failedJobs > 0 ? 'bad' : ''],
+      ['Stuck jobs', num(o.stuckJobs), o.stuckJobs > 0 ? 'warn' : ''],
+      ['Retry rate', pct(o.jobRetryRate), ''],
+      ['Avg processing', o.averageProcessingTimeSeconds === null ? dash : dec(o.averageProcessingTimeSeconds, 1) + 's', '']
+    ].map(([label, value, cls]) =>
+      `<div class="card"><div class="label">${esc(label)}</div><div class="value ${cls}">${value}</div></div>`
+    ).join('');
+
+    table($('breakdown'), [
+      { title: 'Repository', cell: r => esc(r.repository) },
+      { title: 'Label', cell: r => esc(r.label) },
+      { title: 'Model', cell: r => esc(r.model) },
+      { title: 'Decisions', num: true, cell: r => num(r.count) },
+      { title: 'Avg confidence', num: true, cell: r => pct(r.averageConfidence) },
+      { title: 'Low confidence', num: true, cell: r => num(r.lowConfidenceCount) }
+    ], data.breakdown);
+  } catch (err) {
+    fail(target, err);
+    fail($('breakdown'), err);
+  }
+}
+
+async function loadAccuracy() {
+  const target = $('accuracy');
+  try {
+    const rows = await get('/reports/accuracy');
+    table(target, [
+      { title: 'Label', cell: r => esc(r.label) },
+      { title: 'Decisions', num: true, cell: r => num(r.totalDecisions) },
+      { title: 'Overridden', num: true, cell: r => num(r.overriddenCount) },
+      {
+        title: 'Override rate', num: true,
+        cell: r => r.totalDecisions ? pct(r.overriddenCount / r.totalDecisions) : dash
+      },
+      { title: 'Avg confidence', num: true, cell: r => pct(r.averageConfidence) },
+      {
+        title: 'Avg hrs to override', num: true,
+        cell: r => r.averageHoursToOverride === null ? dash : dec(r.averageHoursToOverride, 1)
+      }
+    ], rows);
+  } catch (err) {
+    fail(target, err);
+  }
+}
+
+async function loadCost() {
+  const target = $('cost');
+  try {
+    const rows = await get('/reports/cost');
+    table(target, [
+      { title: 'Repository', cell: r => esc(r.repository) },
+      { title: 'Model', cell: r => esc(r.model) },
+      { title: 'Calls', num: true, cell: r => num(r.totalCalls) },
+      {
+        title: 'With known tokens', num: true,
+        cell: r => `${num(r.callsWithKnownTokens)} / ${num(r.totalCalls)}`
+      },
+      { title: 'Tokens', num: true, cell: r => num(r.sumOfKnownTokens) },
+      {
+        title: 'Priced calls', num: true,
+        cell: r => `${num(r.callsWithKnownCost)} / ${num(r.totalCalls)}`
+      },
+      { title: 'Known cost', num: true, cell: r => usd(r.sumOfKnownCostUsd) }
+    ], rows);
+  } catch (err) {
+    fail(target, err);
+  }
+}
+
+async function loadDetail() {
+  const target = $('detail');
+  try {
+    const onlyUnknown = $('onlyUnknown').checked;
+    const rows = await get('/reports/cost/detail?onlyUnknown=' + onlyUnknown);
+    table(target, [
+      { title: 'When', cell: r => when(r.occurredAtUtc) },
+      { title: 'Repository', cell: r => esc(r.repository) },
+      { title: 'Issue', num: true, cell: r => '#' + num(r.issueNumber) },
+      { title: 'Call', cell: r => esc(r.callType) },
+      { title: 'Model', cell: r => esc(r.model) },
+      { title: 'Tokens', num: true, cell: r => num(r.totalTokens) },
+      { title: 'Cost', num: true, cell: r => usd(r.costUsd) }
+    ], rows);
+  } catch (err) {
+    fail(target, err);
+  }
+}
+
+async function loadAll() {
+  $('stamp').textContent = 'Loading\u2026';
+  await Promise.all([loadOperations(), loadAccuracy(), loadCost(), loadDetail()]);
+  $('stamp').textContent = 'Updated ' + new Date().toLocaleTimeString();
+}
+
+$('refresh').addEventListener('click', loadAll);
+$('onlyUnknown').addEventListener('change', loadDetail);
+loadAll();
+    </script>
+
+</body>
+</html>

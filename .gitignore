@@ -1,0 +1,28 @@
+# Build folders
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+
+RepoTagger/appsettings.json
+
+**/appsettings*.json
+
+appsettings*.json
+!appsettings.example.json
+
+
+*.pem
+*.db
+*.db-wal 
+*.db-shm
