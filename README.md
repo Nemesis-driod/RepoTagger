@@ -92,6 +92,19 @@ dotnet run
 
 Tables are created on first start. Open an issue on the installed repo and watch the logs.
 
+### 5. Create the labels
+
+Before the bot runs, create these four labels in your repo (**Settings → Labels → New label**):
+
+| Label | Suggested color |
+|---|---|
+| `ai:bug` | `#d73a4a` |
+| `ai:feature-request` | `#a2eeef` |
+| `ai:question` | `#d876e3` |
+| `ai:needs-human-review` | `#fbca04` |
+
+If you skip this, the bot may still work — GitHub's API likely creates a missing label automatically the first time it's applied — but it'll get a random color with no description, and you can't fully rule out a failure on a repo you haven't tested against yet. Five minutes now avoids wondering later why a label never showed up.
+
 ## Dashboard
 
 Open the app's root URL in a browser — `https://localhost:5001`, or whatever port Kestrel reports on startup.
