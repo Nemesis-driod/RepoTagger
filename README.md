@@ -4,6 +4,15 @@ A GitHub bot that reads new issues and applies a label: `bug`, `feature-request`
 
 It runs as a GitHub App against your own repo, using your own AI provider key. Nothing is sent anywhere except the AI provider you configure.
 
+
+<img width="1911" height="830" alt="image" src="https://github.com/user-attachments/assets/5e939d1c-2b48-41ba-8ac0-7165a873f0c2" />
+
+
+<img width="1911" height="746" alt="image" src="https://github.com/user-attachments/assets/9701d455-cf1e-4593-9750-6e1b663253c8" />
+
+
+
+
 ## What it actually does
 
 When an issue is opened:
