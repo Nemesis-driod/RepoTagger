@@ -83,7 +83,7 @@ namespace RepoTagger.GitHub
                 var error = await response.Content.ReadAsStringAsync(ct);
                 _logger.LogError("Failed fetching issue state for {Repo} issue {Issue}. Status={Status}. Error={Error}",
                     repo, issueNumber, response.StatusCode, error);
-                throw new HttpRequestException($"GitHub get issue failed: {error}");
+                throw new HttpRequestException($"GitHub get issue failed: {error}", null, response.StatusCode);
             }
             var issue = await response.Content.ReadFromJsonAsync<GitHubIssueDto>(cancellationToken: ct);
             return issue?.State ?? throw new InvalidOperationException("GitHub issue response missing state.");

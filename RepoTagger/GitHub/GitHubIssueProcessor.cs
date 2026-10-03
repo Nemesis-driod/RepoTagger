@@ -3,6 +3,7 @@ using RepoTagger.AI.Domain;
 using RepoTagger.Data;
 
 using RepoTagger.GitHub.Dtos;
+using System.Net;
 using System.Text.Json;
 
 
@@ -56,8 +57,7 @@ namespace RepoTagger.GitHub
             var repository = payload.Repository.FullName;
             var issueNumber = payload.Issue.Number;
 
-            // Only ever written once everything below marked load-bearing has actually
-            // succeeded — treat this as "core obligations were met", not "we reached the end".
+      
 
             var rateCheck = await _rateLimiter.CheckAsync(repository, ct);
             if (!rateCheck.Allowed)
@@ -74,7 +74,17 @@ namespace RepoTagger.GitHub
 
 
 
-            var currentState = await _githubClient.GetIssueStateAsync(repository, issueNumber, ct);
+            string currentState;
+            try
+            {
+                currentState = await _githubClient.GetIssueStateAsync(repository, issueNumber, ct);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.Gone)
+            {
+                _logger.LogInformation("Issue {Repository}#{IssueNumber} no longer exists — skipping.", repository, issueNumber);
+                return new ProcessJobOutcome();
+            }
+
             if (currentState != "open")
             {
                 _logger.LogInformation("Issue {Repository}#{IssueNumber} is no longer open ({State}) — skipping stale processing.",

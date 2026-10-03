@@ -293,6 +293,8 @@ app.Run();
     
  static bool Verify(string signatureHeader, string payload, string secret)
 {
+    Console.WriteLine( $"DIAGNOSTIC — configured secret length: {secret.Length}, first/last char: {secret[0]}/{secret[^1]}");
+
     if (string.IsNullOrEmpty(signatureHeader))
         return false;
 
